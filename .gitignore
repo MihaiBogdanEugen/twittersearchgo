@@ -12,3 +12,7 @@
 *.out
 
 .idea
+vendor/**/CONTRIBUTORS
+vendor/**/*.md
+vendor/**/*.yml
+vendor/**/.gitignore
