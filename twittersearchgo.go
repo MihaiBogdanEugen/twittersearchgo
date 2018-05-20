@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/kurrik/oauth1a"
 	"github.com/kurrik/twittergo"
@@ -16,9 +17,14 @@ type SearchClient struct {
 	SinceID uint64
 }
 
+// SearchTweetsResponse implements the response of a search query, containing tweets and the timestamp when the rate limit resets
+type SearchTweetsResponse struct {
+	Tweets         []twittergo.Tweet
+	RateLimitReset time.Time
+}
+
 // ISearchClient defines the behaviour of a search-optimized Twitter client.
 type ISearchClient interface {
-
 	// SetSinceID Sets the since_id query parameter
 	SetSinceID(sinceID uint64)
 
@@ -55,7 +61,7 @@ func (c *SearchClient) SetSinceID(sinceID uint64) {
 }
 
 // Search searches tweets given a search parameter 'q' till either there are no more results or the rate limit is exceeded
-func (c *SearchClient) Search(q string) ([]twittergo.Tweet, error) {
+func (c *SearchClient) Search(q string) (*SearchTweetsResponse, error) {
 
 	query := url.Values{}
 	query.Set("q", q)
@@ -77,46 +83,64 @@ func (c *SearchClient) Search(q string) ([]twittergo.Tweet, error) {
 	results := &twittergo.SearchResults{}
 	err = response.Parse(results)
 	if err != nil {
-		return nil, err
+		if rateLimitErr, isRateLimitErr := err.(twittergo.RateLimitError); isRateLimitErr {
+			return &SearchTweetsResponse{
+				Tweets:         nil,
+				RateLimitReset: rateLimitErr.Reset,
+			}, nil
+		} else {
+			return nil, err
+		}
 	}
 
+	if results.Statuses() == nil || len(results.Statuses()) == 0 {
+		return &SearchTweetsResponse{
+			Tweets:         nil,
+			RateLimitReset: nil,
+		}, err
+	}
+
+	tweets := results.Statuses()
 	var minID uint64 = 18446744073709551615
-	var tweets []twittergo.Tweet
 	for _, tweet := range results.Statuses() {
-		tweets = append(tweets, tweet)
 		if tweet.Id() < minID {
 			minID = tweet.Id()
 		}
 	}
 
-	if response.RateLimitRemaining() <= 0 && len(tweets) < 100 {
-		return tweets, nil
-	}
-
 	for {
-
-		moreTweets, shouldContinue, err := c.SearchTillMaxID(q, minID-1)
+		moreTweetsResponse, err := c.SearchTillMaxID(q, minID-1)
 		if err != nil {
 			return nil, err
 		}
 
-		for _, tweet := range moreTweets {
-			tweets = append(tweets, tweet)
+		if moreTweetsResponse.Tweets == nil || len(moreTweetsResponse.Tweets) == 0 {
+			break
+		}
+
+		tweets = append(tweets, moreTweetsResponse.Tweets...)
+		if time.Now().Before(moreTweetsResponse.RateLimitReset) {
+			return &SearchTweetsResponse{
+				Tweets:         tweets,
+				RateLimitReset: moreTweetsResponse.RateLimitReset,
+			}, nil
+		}
+
+		for _, tweet := range moreTweetsResponse.Tweets {
 			if tweet.Id() < minID {
 				minID = tweet.Id()
 			}
 		}
-
-		if !shouldContinue {
-			break
-		}
 	}
 
-	return tweets, nil
+	return &SearchTweetsResponse{
+		Tweets:         tweets,
+		RateLimitReset: nil,
+	}, nil
 }
 
 // SearchTillMaxID searches tweets before 'maxID' given a search parameter 'q' till either there are no more results or the rate limit is exceeded
-func (c *SearchClient) SearchTillMaxID(q string, maxID uint64) ([]twittergo.Tweet, bool, error) {
+func (c *SearchClient) SearchTillMaxID(q string, maxID uint64) (*SearchTweetsResponse, error) {
 
 	query := url.Values{}
 	query.Set("q", q)
@@ -127,24 +151,29 @@ func (c *SearchClient) SearchTillMaxID(q string, maxID uint64) ([]twittergo.Twee
 
 	request, err := http.NewRequest("GET", queryURL, nil)
 	if err != nil {
-		return nil, false, err
+		return nil, err
 	}
 
 	response, err := c.Client.SendRequest(request)
 	if err != nil {
-		return nil, false, err
+		return nil, err
 	}
 
 	results := &twittergo.SearchResults{}
 	err = response.Parse(results)
 	if err != nil {
-		return nil, false, err
+		if rateLimitErr, isRateLimitErr := err.(twittergo.RateLimitError); isRateLimitErr {
+			return &SearchTweetsResponse{
+				Tweets:         nil,
+				RateLimitReset: rateLimitErr.Reset,
+			}, nil
+		} else {
+			return nil, err
+		}
 	}
 
-	var tweets []twittergo.Tweet
-	for _, tweet := range results.Statuses() {
-		tweets = append(tweets, tweet)
-	}
-
-	return tweets, len(tweets) == 100 && response.RateLimitRemaining() > 0, nil
+	return &SearchTweetsResponse{
+		Tweets:         results.Statuses(),
+		RateLimitReset: nil,
+	}, nil
 }
