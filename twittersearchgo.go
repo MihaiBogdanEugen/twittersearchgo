@@ -84,20 +84,14 @@ func (c *SearchClient) Search(q string) (*SearchTweetsResponse, error) {
 	err = response.Parse(results)
 	if err != nil {
 		if rateLimitErr, isRateLimitErr := err.(twittergo.RateLimitError); isRateLimitErr {
-			return &SearchTweetsResponse{
-				Tweets:         nil,
-				RateLimitReset: rateLimitErr.Reset,
-			}, nil
+			return &SearchTweetsResponse{RateLimitReset: rateLimitErr.Reset}, nil
 		} else {
 			return nil, err
 		}
 	}
 
 	if results.Statuses() == nil || len(results.Statuses()) == 0 {
-		return &SearchTweetsResponse{
-			Tweets:         nil,
-			RateLimitReset: nil,
-		}, err
+		return nil, err
 	}
 
 	tweets := results.Statuses()
@@ -133,10 +127,7 @@ func (c *SearchClient) Search(q string) (*SearchTweetsResponse, error) {
 		}
 	}
 
-	return &SearchTweetsResponse{
-		Tweets:         tweets,
-		RateLimitReset: nil,
-	}, nil
+	return &SearchTweetsResponse{Tweets: tweets}, nil
 }
 
 // SearchTillMaxID searches tweets before 'maxID' given a search parameter 'q' till either there are no more results or the rate limit is exceeded
@@ -163,17 +154,13 @@ func (c *SearchClient) SearchTillMaxID(q string, maxID uint64) (*SearchTweetsRes
 	err = response.Parse(results)
 	if err != nil {
 		if rateLimitErr, isRateLimitErr := err.(twittergo.RateLimitError); isRateLimitErr {
-			return &SearchTweetsResponse{
-				Tweets:         nil,
-				RateLimitReset: rateLimitErr.Reset,
-			}, nil
+			return &SearchTweetsResponse{RateLimitReset: rateLimitErr.Reset}, nil
 		} else {
 			return nil, err
 		}
 	}
 
 	return &SearchTweetsResponse{
-		Tweets:         results.Statuses(),
-		RateLimitReset: nil,
+		Tweets: results.Statuses(),
 	}, nil
 }
