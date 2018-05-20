@@ -15,6 +15,7 @@ import (
 type SearchClient struct {
 	Client  twittergo.Client
 	SinceID uint64
+	Lang    string
 }
 
 // SearchTweetsResponse implements the response of a search query, containing tweets and the timestamp when the rate limit resets
@@ -25,8 +26,11 @@ type SearchTweetsResponse struct {
 
 // ISearchClient defines the behaviour of a search-optimized Twitter client.
 type ISearchClient interface {
-	// SetSinceID Sets the since_id query parameter
+	// SetSinceID sets the since_id query parameter
 	SetSinceID(sinceID uint64)
+
+	// SetLang sets the lang query parameter
+	SetLang(lang string)
 
 	// Search searches tweets given a search parameter 'q' till either there are no more results or the rate limit is exceeded
 	Search(q string) ([]twittergo.Tweet, error)
@@ -55,9 +59,14 @@ func NewClientUsingUserAuth(consumerKey string, consumerSecret string, accessTok
 	}
 }
 
-// SetSinceID Sets the since_id query parameter
+// SetSinceID sets the since_id query parameter
 func (c *SearchClient) SetSinceID(sinceID uint64) {
 	c.SinceID = sinceID
+}
+
+// SetLang sets the lang query parameter
+func (c *SearchClient) SetLang(lang string) {
+	c.Lang = lang
 }
 
 // Search searches tweets given a search parameter 'q' till either there are no more results or the rate limit is exceeded
@@ -68,6 +77,9 @@ func (c *SearchClient) Search(q string) (*SearchTweetsResponse, error) {
 	queryURL := fmt.Sprintf("/1.1/search/tweets.json?%v&count=100", query.Encode())
 	if c.SinceID > 0 {
 		queryURL = fmt.Sprintf("%s&since_id=%d", queryURL, c.SinceID)
+	}
+	if len(c.Lang) > 0 {
+		queryURL = fmt.Sprintf("%s&lang=%s", queryURL, c.Lang)
 	}
 
 	request, err := http.NewRequest("GET", queryURL, nil)
@@ -138,6 +150,9 @@ func (c *SearchClient) SearchTillMaxID(q string, maxID uint64) (*SearchTweetsRes
 	queryURL := fmt.Sprintf("/1.1/search/tweets.json?%v&count=100&max_id=%d", query.Encode(), maxID)
 	if c.SinceID > 0 {
 		queryURL = fmt.Sprintf("%s&since_id=%d", queryURL, c.SinceID)
+	}
+	if len(c.Lang) > 0 {
+		queryURL = fmt.Sprintf("%s&lang=%s", queryURL, c.Lang)
 	}
 
 	request, err := http.NewRequest("GET", queryURL, nil)
