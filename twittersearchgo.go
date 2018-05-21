@@ -20,8 +20,11 @@ type SearchTwitterClient struct {
 
 // SearchTweetsResponse implements the response of a search query, containing tweets and the timestamp when the rate limit resets
 type SearchTweetsResponse struct {
-	Tweets         []twittergo.Tweet
-	RateLimitReset time.Time
+	Tweets             []twittergo.Tweet
+	HasRateLimit       bool
+	RateLimit          uint32
+	RateLimitRemaining uint32
+	RateLimitReset     time.Time
 }
 
 // ISearchClient defines the behaviour of a search-optimized Twitter client.
@@ -92,54 +95,63 @@ func (c *SearchTwitterClient) Search(q string) (*SearchTweetsResponse, error) {
 		return nil, err
 	}
 
-	results := &twittergo.SearchResults{}
-	err = response.Parse(results)
-	if err != nil {
+	result := &SearchTweetsResponse{}
+	if response.HasRateLimit() {
+		result.HasRateLimit = true
+		result.RateLimit = response.RateLimit()
+		result.RateLimitRemaining = response.RateLimitRemaining()
+		result.RateLimitReset = response.RateLimitReset()
+	}
+
+	searchResults := &twittergo.SearchResults{}
+	if err = response.Parse(searchResults); err != nil {
 		if rateLimitErr, isRateLimitErr := err.(twittergo.RateLimitError); isRateLimitErr {
-			return &SearchTweetsResponse{RateLimitReset: rateLimitErr.Reset}, nil
+			result.HasRateLimit = true
+			result.RateLimit = rateLimitErr.RateLimit()
+			result.RateLimitRemaining = rateLimitErr.RateLimitRemaining()
+			result.RateLimitReset = rateLimitErr.RateLimitReset()
 		} else {
 			return nil, err
 		}
 	}
 
-	if results.Statuses() == nil || len(results.Statuses()) == 0 {
-		return nil, err
+	if searchResults.Statuses() == nil || len(searchResults.Statuses()) == 0 {
+		return result, nil
 	}
 
-	tweets := results.Statuses()
+	result.Tweets = searchResults.Statuses()
+
 	var minID uint64 = 18446744073709551615
-	for _, tweet := range results.Statuses() {
+	for _, tweet := range searchResults.Statuses() {
 		if tweet.Id() < minID {
 			minID = tweet.Id()
 		}
 	}
 
 	for {
-		moreTweetsResponse, err := c.SearchTillMaxID(q, minID-1)
+		nextResponse, err := c.SearchTillMaxID(q, minID-1)
 		if err != nil {
 			return nil, err
 		}
 
-		if moreTweetsResponse.Tweets == nil || len(moreTweetsResponse.Tweets) == 0 {
+		result.Tweets = append(result.Tweets, nextResponse.Tweets...)
+		result.HasRateLimit = nextResponse.HasRateLimit
+		result.RateLimit = nextResponse.RateLimit
+		result.RateLimitRemaining = nextResponse.RateLimitRemaining
+		result.RateLimitReset = nextResponse.RateLimitReset
+
+		if len(nextResponse.Tweets) == 0 || time.Now().Before(nextResponse.RateLimitReset) {
 			break
 		}
 
-		tweets = append(tweets, moreTweetsResponse.Tweets...)
-		if time.Now().Before(moreTweetsResponse.RateLimitReset) {
-			return &SearchTweetsResponse{
-				Tweets:         tweets,
-				RateLimitReset: moreTweetsResponse.RateLimitReset,
-			}, nil
-		}
-
-		for _, tweet := range moreTweetsResponse.Tweets {
+		for _, tweet := range nextResponse.Tweets {
 			if tweet.Id() < minID {
 				minID = tweet.Id()
 			}
 		}
 	}
 
-	return &SearchTweetsResponse{Tweets: tweets}, nil
+	return result, nil
 }
 
 // SearchTillMaxID searches tweets before 'maxID' given a search parameter 'q' till either there are no more results or the rate limit is exceeded
@@ -165,17 +177,32 @@ func (c *SearchTwitterClient) SearchTillMaxID(q string, maxID uint64) (*SearchTw
 		return nil, err
 	}
 
-	results := &twittergo.SearchResults{}
-	err = response.Parse(results)
-	if err != nil {
+	result := &SearchTweetsResponse{
+		Tweets: []twittergo.Tweet{},
+	}
+
+	if response.HasRateLimit() {
+		result.HasRateLimit = true
+		result.RateLimit = response.RateLimit()
+		result.RateLimitRemaining = response.RateLimitRemaining()
+		result.RateLimitReset = response.RateLimitReset()
+	}
+
+	searchResults := &twittergo.SearchResults{}
+	if err = response.Parse(searchResults); err != nil {
 		if rateLimitErr, isRateLimitErr := err.(twittergo.RateLimitError); isRateLimitErr {
-			return &SearchTweetsResponse{RateLimitReset: rateLimitErr.Reset}, nil
+			result.HasRateLimit = true
+			result.RateLimit = rateLimitErr.RateLimit()
+			result.RateLimitRemaining = rateLimitErr.RateLimitRemaining()
+			result.RateLimitReset = rateLimitErr.RateLimitReset()
 		} else {
 			return nil, err
 		}
 	}
 
-	return &SearchTweetsResponse{
-		Tweets: results.Statuses(),
-	}, nil
+	if searchResults.Statuses() != nil && len(searchResults.Statuses()) > 0 {
+		result.Tweets = searchResults.Statuses()
+	}
+
+	return result, nil
 }
