@@ -12,10 +12,10 @@ import (
 )
 
 // SearchClient implements a search-optimized Twitter client.
-type SearchClient struct {
-	Client  twittergo.Client
-	SinceID uint64
-	Lang    string
+type SearchTwitterClient struct {
+	TwitterClient twittergo.Client
+	SinceID       uint64
+	Language          string
 }
 
 // SearchTweetsResponse implements the response of a search query, containing tweets and the timestamp when the rate limit resets
@@ -40,9 +40,9 @@ type ISearchClient interface {
 }
 
 // NewClientUsingApplicationAuth creates a new SearchClient using application authentication, with a rate limited to 450 requests per 15 minutes
-func NewClientUsingApplicationAuth(consumerKey string, consumerSecret string) *SearchClient {
-	return &SearchClient{
-		Client: *twittergo.NewClient(&oauth1a.ClientConfig{
+func NewClientUsingApplicationAuth(consumerKey string, consumerSecret string) *SearchTwitterClient {
+	return &SearchTwitterClient{
+		TwitterClient: *twittergo.NewClient(&oauth1a.ClientConfig{
 			ConsumerKey:    consumerKey,
 			ConsumerSecret: consumerSecret,
 		}, nil),
@@ -50,9 +50,9 @@ func NewClientUsingApplicationAuth(consumerKey string, consumerSecret string) *S
 }
 
 // NewClientUsingUserAuth creates a new SearchClient using user authentication, with a rate limited to 180 requests per 15 minutes
-func NewClientUsingUserAuth(consumerKey string, consumerSecret string, accessToken string, accessTokenSecret string) *SearchClient {
-	return &SearchClient{
-		Client: *twittergo.NewClient(&oauth1a.ClientConfig{
+func NewClientUsingUserAuth(consumerKey string, consumerSecret string, accessToken string, accessTokenSecret string) *SearchTwitterClient {
+	return &SearchTwitterClient{
+		TwitterClient: *twittergo.NewClient(&oauth1a.ClientConfig{
 			ConsumerKey:    consumerKey,
 			ConsumerSecret: consumerSecret,
 		}, oauth1a.NewAuthorizedConfig(accessToken, accessTokenSecret)),
@@ -60,17 +60,17 @@ func NewClientUsingUserAuth(consumerKey string, consumerSecret string, accessTok
 }
 
 // SetSinceID sets the since_id query parameter
-func (c *SearchClient) SetSinceID(sinceID uint64) {
+func (c *SearchTwitterClient) SetSinceID(sinceID uint64) {
 	c.SinceID = sinceID
 }
 
 // SetLang sets the lang query parameter
-func (c *SearchClient) SetLang(lang string) {
-	c.Lang = lang
+func (c *SearchTwitterClient) SetLang(language string) {
+	c.Language = language
 }
 
 // Search searches tweets given a search parameter 'q' till either there are no more results or the rate limit is exceeded
-func (c *SearchClient) Search(q string) (*SearchTweetsResponse, error) {
+func (c *SearchTwitterClient) Search(q string) (*SearchTweetsResponse, error) {
 
 	query := url.Values{}
 	query.Set("q", q)
@@ -78,8 +78,8 @@ func (c *SearchClient) Search(q string) (*SearchTweetsResponse, error) {
 	if c.SinceID > 0 {
 		queryURL = fmt.Sprintf("%s&since_id=%d", queryURL, c.SinceID)
 	}
-	if len(c.Lang) > 0 {
-		queryURL = fmt.Sprintf("%s&lang=%s", queryURL, c.Lang)
+	if len(c.Language) > 0 {
+		queryURL = fmt.Sprintf("%s&lang=%s", queryURL, c.Language)
 	}
 
 	request, err := http.NewRequest("GET", queryURL, nil)
@@ -87,7 +87,7 @@ func (c *SearchClient) Search(q string) (*SearchTweetsResponse, error) {
 		return nil, err
 	}
 
-	response, err := c.Client.SendRequest(request)
+	response, err := c.TwitterClient.SendRequest(request)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +143,7 @@ func (c *SearchClient) Search(q string) (*SearchTweetsResponse, error) {
 }
 
 // SearchTillMaxID searches tweets before 'maxID' given a search parameter 'q' till either there are no more results or the rate limit is exceeded
-func (c *SearchClient) SearchTillMaxID(q string, maxID uint64) (*SearchTweetsResponse, error) {
+func (c *SearchTwitterClient) SearchTillMaxID(q string, maxID uint64) (*SearchTweetsResponse, error) {
 
 	query := url.Values{}
 	query.Set("q", q)
@@ -151,8 +151,8 @@ func (c *SearchClient) SearchTillMaxID(q string, maxID uint64) (*SearchTweetsRes
 	if c.SinceID > 0 {
 		queryURL = fmt.Sprintf("%s&since_id=%d", queryURL, c.SinceID)
 	}
-	if len(c.Lang) > 0 {
-		queryURL = fmt.Sprintf("%s&lang=%s", queryURL, c.Lang)
+	if len(c.Language) > 0 {
+		queryURL = fmt.Sprintf("%s&lang=%s", queryURL, c.Language)
 	}
 
 	request, err := http.NewRequest("GET", queryURL, nil)
@@ -160,7 +160,7 @@ func (c *SearchClient) SearchTillMaxID(q string, maxID uint64) (*SearchTweetsRes
 		return nil, err
 	}
 
-	response, err := c.Client.SendRequest(request)
+	response, err := c.TwitterClient.SendRequest(request)
 	if err != nil {
 		return nil, err
 	}
