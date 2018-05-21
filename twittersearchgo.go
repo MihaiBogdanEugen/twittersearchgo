@@ -5,11 +5,15 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 	"time"
 
 	"github.com/kurrik/oauth1a"
 	"github.com/kurrik/twittergo"
 )
+
+// BatchSize Query for tweets in batches of this size
+const BatchSize = 100
 
 // SearchClient implements a search-optimized Twitter client.
 type SearchTwitterClient struct {
@@ -36,10 +40,10 @@ type ISearchClient interface {
 	SetLanguage(language string)
 
 	// Search searches tweets given a search parameter 'q' till either there are no more results or the rate limit is exceeded
-	Search(q string) ([]twittergo.Tweet, error)
+	Search(query string) ([]twittergo.Tweet, error)
 
 	// SearchTillMaxID searches tweets before 'maxID' given a search parameter 'q' till either there are no more results or the rate limit is exceeded
-	SearchTillMaxID(q string, maxID uint64) ([]twittergo.Tweet, bool, error)
+	SearchTillMaxID(query string, maxID uint64) ([]twittergo.Tweet, bool, error)
 }
 
 // NewClientUsingApplicationAuth creates a new SearchClient using application authentication, with a rate limited to 450 requests per 15 minutes
@@ -73,17 +77,18 @@ func (c *SearchTwitterClient) SetLanguage(language string) {
 }
 
 // Search searches tweets given a search parameter 'q' till either there are no more results or the rate limit is exceeded
-func (c *SearchTwitterClient) Search(q string) (*SearchTweetsResponse, error) {
+func (c *SearchTwitterClient) Search(query string) (*SearchTweetsResponse, error) {
 
-	query := url.Values{}
-	query.Set("q", q)
-	queryURL := fmt.Sprintf("/1.1/search/tweets.json?%v&count=100", query.Encode())
-	if c.SinceID > 0 {
-		queryURL = fmt.Sprintf("%s&since_id=%d", queryURL, c.SinceID)
-	}
+	queryParams := url.Values{}
+	queryParams.Set("count", strconv.Itoa(BatchSize))
 	if len(c.Language) > 0 {
-		queryURL = fmt.Sprintf("%s&lang=%s", queryURL, c.Language)
+		queryParams.Set("lang", c.Language)
 	}
+	queryParams.Set("q", query)
+	if c.SinceID > 0 {
+		queryParams.Set("since_id", strconv.FormatUint(c.SinceID, 10))
+	}
+	queryURL := fmt.Sprintf("/1.1/search/tweets.json?%v", queryParams.Encode())
 
 	request, err := http.NewRequest("GET", queryURL, nil)
 	if err != nil {
@@ -129,7 +134,7 @@ func (c *SearchTwitterClient) Search(q string) (*SearchTweetsResponse, error) {
 	}
 
 	for {
-		nextResponse, err := c.SearchTillMaxID(q, minID-1)
+		nextResponse, err := c.SearchTillMaxID(query, minID-1)
 		if err != nil {
 			return nil, err
 		}
@@ -155,17 +160,19 @@ func (c *SearchTwitterClient) Search(q string) (*SearchTweetsResponse, error) {
 }
 
 // SearchTillMaxID searches tweets before 'maxID' given a search parameter 'q' till either there are no more results or the rate limit is exceeded
-func (c *SearchTwitterClient) SearchTillMaxID(q string, maxID uint64) (*SearchTweetsResponse, error) {
+func (c *SearchTwitterClient) SearchTillMaxID(query string, maxID uint64) (*SearchTweetsResponse, error) {
 
-	query := url.Values{}
-	query.Set("q", q)
-	queryURL := fmt.Sprintf("/1.1/search/tweets.json?%v&count=100&max_id=%d", query.Encode(), maxID)
-	if c.SinceID > 0 {
-		queryURL = fmt.Sprintf("%s&since_id=%d", queryURL, c.SinceID)
-	}
+	queryParams := url.Values{}
+	queryParams.Set("count", strconv.Itoa(BatchSize))
+	queryParams.Set("q", query)
 	if len(c.Language) > 0 {
-		queryURL = fmt.Sprintf("%s&lang=%s", queryURL, c.Language)
+		queryParams.Set("lang", c.Language)
 	}
+	queryParams.Set("max_id", strconv.FormatUint(maxID, 10))
+	if c.SinceID > 0 {
+		queryParams.Set("since_id", strconv.FormatUint(c.SinceID, 10))
+	}
+	queryURL := fmt.Sprintf("/1.1/search/tweets.json?%v", queryParams.Encode())
 
 	request, err := http.NewRequest("GET", queryURL, nil)
 	if err != nil {
