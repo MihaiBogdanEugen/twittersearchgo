@@ -15,7 +15,7 @@ import (
 type SearchTwitterClient struct {
 	TwitterClient twittergo.Client
 	SinceID       uint64
-	Language          string
+	Language      string
 }
 
 // SearchTweetsResponse implements the response of a search query, containing tweets and the timestamp when the rate limit resets
@@ -30,7 +30,7 @@ type ISearchClient interface {
 	SetSinceID(sinceID uint64)
 
 	// SetLang sets the lang query parameter
-	SetLang(lang string)
+	SetLanguage(language string)
 
 	// Search searches tweets given a search parameter 'q' till either there are no more results or the rate limit is exceeded
 	Search(q string) ([]twittergo.Tweet, error)
@@ -65,7 +65,7 @@ func (c *SearchTwitterClient) SetSinceID(sinceID uint64) {
 }
 
 // SetLang sets the lang query parameter
-func (c *SearchTwitterClient) SetLang(language string) {
+func (c *SearchTwitterClient) SetLanguage(language string) {
 	c.Language = language
 }
 
