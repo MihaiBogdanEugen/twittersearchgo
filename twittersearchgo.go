@@ -92,7 +92,11 @@ func (c *SearchTwitterClient) SetResultType(resultType string) {
 
 // SetLang sets the lang query parameter
 func (c *SearchTwitterClient) SetLanguage(language string) {
-	c.Language = language
+	if len(language) > 0 {
+		c.Language = language
+	} else {
+		c.Language = "en"
+	}
 }
 
 // Search searches tweets given a search parameter 'q' till either there are no more results or the rate limit is exceeded

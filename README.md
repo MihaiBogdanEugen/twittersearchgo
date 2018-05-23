@@ -41,7 +41,7 @@ Apart of these, there are the following optional parameters:
 | ------------- | ------------- | ------------- | ------------- |
 | language | optional | Restricts tweets to the given language, given by an ISO 639-1 code. Language detection is best-effort. | en |
 | max_id | optional | Returns results with an ID less than (that is, older than) or equal to the specified ID. | - |
-| result_type | optional | Optional. Specifies what type of search results you would prefer to receive. Valid values include: `mixed` - Include both popular and real time results in the response; `recent` - return only the most recent results in the response; `popular` - return only the most popular results in the response. | mixed |
+| result_type | optional | Specifies what type of search results you would prefer to receive. Valid values include: `mixed` - Include both popular and real time results in the response; `recent` - return only the most recent results in the response; `popular` - return only the most popular results in the response. | mixed |
 | since_id | optional | Returns results with an ID greater than (that is, more recent than) the specified ID. There are limits to the number of Tweets which can be accessed through the API. If the limit of Tweets has occured since the since_id, the since_id will be forced to the oldest ID available. | - |
 
 
