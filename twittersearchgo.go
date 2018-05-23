@@ -19,6 +19,7 @@ const BatchSize = 100
 type SearchTwitterClient struct {
 	TwitterClient twittergo.Client
 	SinceID       uint64
+	MaxID         uint64
 	Language      string
 }
 
@@ -36,18 +37,18 @@ type ISearchClient interface {
 	// SetSinceID sets the since_id query parameter
 	SetSinceID(sinceID uint64)
 
+	// SetMaxID sets the max_id query parameter
+	SetMaxID(maxID uint64)
+
 	// SetLang sets the lang query parameter
 	SetLanguage(language string)
 
 	// Search searches tweets given a search parameter 'q' till either there are no more results or the rate limit is exceeded
-	Search(query string) ([]twittergo.Tweet, error)
-
-	// SearchTillMaxID searches tweets before 'maxID' given a search parameter 'q' till either there are no more results or the rate limit is exceeded
-	SearchTillMaxID(query string, maxID uint64) ([]twittergo.Tweet, bool, error)
+	Search(query string) (*SearchTweetsResponse, error)
 }
 
 // NewClientUsingApplicationAuth creates a new SearchClient using application authentication, with a rate limited to 450 requests per 15 minutes
-func NewClientUsingApplicationAuth(consumerKey string, consumerSecret string) *SearchTwitterClient {
+func NewClientUsingAppAuth(consumerKey string, consumerSecret string) *SearchTwitterClient {
 	return &SearchTwitterClient{
 		TwitterClient: *twittergo.NewClient(&oauth1a.ClientConfig{
 			ConsumerKey:    consumerKey,
@@ -71,6 +72,11 @@ func (c *SearchTwitterClient) SetSinceID(sinceID uint64) {
 	c.SinceID = sinceID
 }
 
+// SetMaxID sets the max_id query parameter
+func (c *SearchTwitterClient) SetMaxID(maxID uint64) {
+	c.MaxID = maxID
+}
+
 // SetLang sets the lang query parameter
 func (c *SearchTwitterClient) SetLanguage(language string) {
 	c.Language = language
@@ -83,6 +89,9 @@ func (c *SearchTwitterClient) Search(query string) (*SearchTweetsResponse, error
 	queryParams.Set("count", strconv.Itoa(BatchSize))
 	if len(c.Language) > 0 {
 		queryParams.Set("lang", c.Language)
+	}
+	if c.MaxID > 0 {
+		queryParams.Set("max_id", strconv.FormatUint(c.MaxID, 10))
 	}
 	queryParams.Set("q", query)
 	if c.SinceID > 0 {
@@ -134,7 +143,8 @@ func (c *SearchTwitterClient) Search(query string) (*SearchTweetsResponse, error
 	}
 
 	for {
-		nextResponse, err := c.SearchTillMaxID(query, minID-1)
+		c.MaxID = minID-1
+		nextResponse, err := c.searchForMore(query)
 		if err != nil {
 			return nil, err
 		}
@@ -159,8 +169,7 @@ func (c *SearchTwitterClient) Search(query string) (*SearchTweetsResponse, error
 	return result, nil
 }
 
-// SearchTillMaxID searches tweets before 'maxID' given a search parameter 'q' till either there are no more results or the rate limit is exceeded
-func (c *SearchTwitterClient) SearchTillMaxID(query string, maxID uint64) (*SearchTweetsResponse, error) {
+func (c *SearchTwitterClient) searchForMore(query string) (*SearchTweetsResponse, error) {
 
 	queryParams := url.Values{}
 	queryParams.Set("count", strconv.Itoa(BatchSize))
@@ -168,7 +177,7 @@ func (c *SearchTwitterClient) SearchTillMaxID(query string, maxID uint64) (*Sear
 	if len(c.Language) > 0 {
 		queryParams.Set("lang", c.Language)
 	}
-	queryParams.Set("max_id", strconv.FormatUint(maxID, 10))
+	queryParams.Set("max_id", strconv.FormatUint(c.MaxID, 10))
 	if c.SinceID > 0 {
 		queryParams.Set("since_id", strconv.FormatUint(c.SinceID, 10))
 	}
