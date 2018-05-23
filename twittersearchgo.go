@@ -20,6 +20,7 @@ type SearchTwitterClient struct {
 	TwitterClient twittergo.Client
 	SinceID       uint64
 	MaxID         uint64
+	ResultType    string
 	Language      string
 }
 
@@ -39,6 +40,9 @@ type ISearchClient interface {
 
 	// SetMaxID sets the max_id query parameter
 	SetMaxID(maxID uint64)
+
+	// SetResultType sets the result_type query parameter
+	SetResultType(resultType string)
 
 	// SetLang sets the lang query parameter
 	SetLanguage(language string)
@@ -77,6 +81,15 @@ func (c *SearchTwitterClient) SetMaxID(maxID uint64) {
 	c.MaxID = maxID
 }
 
+// SetResultType sets the result_type query parameter
+func (c *SearchTwitterClient) SetResultType(resultType string) {
+	if resultType == "recent" || resultType == "popular" {
+		c.ResultType = resultType
+	} else {
+		c.ResultType = "mixed"
+	}
+}
+
 // SetLang sets the lang query parameter
 func (c *SearchTwitterClient) SetLanguage(language string) {
 	c.Language = language
@@ -94,6 +107,7 @@ func (c *SearchTwitterClient) Search(query string) (*SearchTweetsResponse, error
 		queryParams.Set("max_id", strconv.FormatUint(c.MaxID, 10))
 	}
 	queryParams.Set("q", query)
+	queryParams.Set("result_type", c.ResultType)
 	if c.SinceID > 0 {
 		queryParams.Set("since_id", strconv.FormatUint(c.SinceID, 10))
 	}
@@ -143,7 +157,7 @@ func (c *SearchTwitterClient) Search(query string) (*SearchTweetsResponse, error
 	}
 
 	for {
-		c.MaxID = minID-1
+		c.MaxID = minID - 1
 		nextResponse, err := c.searchForMore(query)
 		if err != nil {
 			return nil, err
@@ -178,6 +192,7 @@ func (c *SearchTwitterClient) searchForMore(query string) (*SearchTweetsResponse
 		queryParams.Set("lang", c.Language)
 	}
 	queryParams.Set("max_id", strconv.FormatUint(c.MaxID, 10))
+	queryParams.Set("result_type", c.ResultType)
 	if c.SinceID > 0 {
 		queryParams.Set("since_id", strconv.FormatUint(c.SinceID, 10))
 	}
