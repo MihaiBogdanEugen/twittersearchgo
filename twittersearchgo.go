@@ -194,7 +194,7 @@ func (c *SearchTwitterClient) Search(query string) (*SearchTweetsResponse, error
 			c.logger.Debugf("response #%d got %d tweets, HasRateLimit = %v, RateLimit = %d, RateLimitRemaining = %d, RateLimitReset = %v", counter, len(nextResponse.Tweets), nextResponse.HasRateLimit, nextResponse.RateLimit, nextResponse.RateLimitRemaining, nextResponse.RateLimitReset)
 		}
 
-		if len(nextResponse.Tweets) == 0 {
+		if result.RateLimitRemaining == 0 || len(nextResponse.Tweets) == 0 {
 			if c.logger != nil {
 				c.logger.Debug("will stop")
 			}
