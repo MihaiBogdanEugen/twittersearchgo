@@ -10,6 +10,7 @@ import (
 
 	"github.com/kurrik/oauth1a"
 	"github.com/kurrik/twittergo"
+	"github.com/sirupsen/logrus"
 )
 
 // BatchSize Query for tweets in batches of this size
@@ -22,6 +23,7 @@ type SearchTwitterClient struct {
 	MaxID         uint64
 	ResultType    string
 	Language      string
+	logger        *logrus.Logger
 }
 
 // SearchTweetsResponse implements the response of a search query, containing tweets and the timestamp when the rate limit resets
@@ -46,6 +48,9 @@ type ISearchClient interface {
 
 	// SetLang sets the lang query parameter
 	SetLanguage(language string)
+
+	// SetLogger sets the logger
+	SetLogger(logger *logrus.Logger)
 
 	// Search searches tweets given a search parameter 'q' till either there are no more results or the rate limit is exceeded
 	Search(query string) (*SearchTweetsResponse, error)
@@ -74,6 +79,11 @@ func NewClientUsingUserAuth(consumerKey string, consumerSecret string, accessTok
 // SetSinceID sets the since_id query parameter
 func (c *SearchTwitterClient) SetSinceID(sinceID uint64) {
 	c.SinceID = sinceID
+}
+
+// SetLogger sets the logger
+func (c *SearchTwitterClient) SetLogger(logger *logrus.Logger) {
+	c.logger = logger
 }
 
 // SetMaxID sets the max_id query parameter
@@ -151,6 +161,10 @@ func (c *SearchTwitterClient) Search(query string) (*SearchTweetsResponse, error
 		return result, nil
 	}
 
+	if c.logger != nil {
+		c.logger.Debugf("response #1 got %d tweets, HasRateLimit = %v, RateLimit = %d, RateLimitRemaining = %d, RateLimitReset = %v", len(searchResults.Statuses()), response.HasRateLimit(), response.RateLimit(), response.RateLimitRemaining(), response.RateLimitReset())
+	}
+
 	result.Tweets = searchResults.Statuses()
 
 	var minID uint64 = 18446744073709551615
@@ -159,6 +173,8 @@ func (c *SearchTwitterClient) Search(query string) (*SearchTweetsResponse, error
 			minID = tweet.Id()
 		}
 	}
+
+	counter := 1
 
 	for {
 		c.MaxID = minID - 1
@@ -173,7 +189,15 @@ func (c *SearchTwitterClient) Search(query string) (*SearchTweetsResponse, error
 		result.RateLimitRemaining = nextResponse.RateLimitRemaining
 		result.RateLimitReset = nextResponse.RateLimitReset
 
-		if len(nextResponse.Tweets) == 0 || time.Now().Before(nextResponse.RateLimitReset) {
+		counter++
+		if c.logger != nil {
+			c.logger.Debugf("response #%d got %d tweets, HasRateLimit = %v, RateLimit = %d, RateLimitRemaining = %d, RateLimitReset = %v", counter, len(nextResponse.Tweets), nextResponse.HasRateLimit, nextResponse.RateLimit, nextResponse.RateLimitRemaining, nextResponse.RateLimitReset)
+		}
+
+		if len(nextResponse.Tweets) == 0 {
+			if c.logger != nil {
+				c.logger.Debug("will stop")
+			}
 			break
 		}
 
@@ -235,7 +259,7 @@ func (c *SearchTwitterClient) searchForMore(query string) (*SearchTweetsResponse
 		}
 	}
 
-	if searchResults.Statuses() != nil && len(searchResults.Statuses()) > 0 {
+	if searchResults != nil && searchResults.Statuses() != nil && len(searchResults.Statuses()) > 0 {
 		result.Tweets = searchResults.Statuses()
 	}
 
