@@ -37,6 +37,7 @@ Thus, the client will use application authentication. For user authentication, t
 - the Twitter API Access Token Secret
 
 Apart of these, there are the following optional parameters:
+
 | Name | Required | Description | Default Value | 
 | ------------- | ------------- | ------------- | ------------- |
 | language | optional | Restricts tweets to the given language, given by an ISO 639-1 code. Language detection is best-effort. | en |
