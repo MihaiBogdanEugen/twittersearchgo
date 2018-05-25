@@ -5,7 +5,7 @@ This project extends [kurrik](https://github.com/kurrik)'s [twittergo](https://g
 The goal of this project is to provide an efficient way of working with [timelines](https://developer.twitter.com/en/docs/tweets/timelines/guides/working-with-timelines) by searching for tweets by using max_id and since_id query parameters.
 In case of a RateLimitError, the reset of the timestamp will be returned - it's the duty of the caller to wait the required time.
 
-[![Build Status](https://travis-ci.org/MihaiBogdanEugen/twittersearchgo.svg?branch=master)](https://travis-ci.org/MihaiBogdanEugen/twittersearchgo)
+[![Build Status](https://travis-ci.org/MihaiBogdanEugen/twittersearchgo.svg?branch=master)](https://travis-ci.org/MihaiBogdanEugen/twittersearchgo) [![Go Report Card](https://goreportcard.com/badge/github.com/MihaiBogdanEugen/twittersearchgo)](https://goreportcard.com/report/github.com/MihaiBogdanEugen/twittersearchgo)
 
 Installing
 ----------
