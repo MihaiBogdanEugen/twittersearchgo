@@ -16,7 +16,7 @@ import (
 // BatchSize Query for tweets in batches of this size
 const BatchSize = 100
 
-// SearchClient implements a search-optimized Twitter client.
+// SearchTwitterClient implements a search-optimized Twitter client.
 type SearchTwitterClient struct {
 	TwitterClient twittergo.Client
 	SinceID       uint64
@@ -46,7 +46,7 @@ type ISearchClient interface {
 	// SetResultType sets the result_type query parameter
 	SetResultType(resultType string)
 
-	// SetLang sets the lang query parameter
+	// SetLanguage sets the lang query parameter
 	SetLanguage(language string)
 
 	// SetLogger sets the logger
@@ -56,7 +56,7 @@ type ISearchClient interface {
 	Search(query string) (*SearchTweetsResponse, error)
 }
 
-// NewClientUsingApplicationAuth creates a new SearchClient using application authentication, with a rate limited to 450 requests per 15 minutes
+// NewClientUsingAppAuth creates a new SearchClient using application authentication, with a rate limited to 450 requests per 15 minutes
 func NewClientUsingAppAuth(consumerKey string, consumerSecret string) *SearchTwitterClient {
 	return &SearchTwitterClient{
 		TwitterClient: *twittergo.NewClient(&oauth1a.ClientConfig{
@@ -100,7 +100,7 @@ func (c *SearchTwitterClient) SetResultType(resultType string) {
 	}
 }
 
-// SetLang sets the lang query parameter
+// SetLanguage sets the lang query parameter
 func (c *SearchTwitterClient) SetLanguage(language string) {
 	if len(language) > 0 {
 		c.Language = language
